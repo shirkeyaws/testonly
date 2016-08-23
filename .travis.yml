@@ -1,0 +1,46 @@
+sudo: required
+dist: trusty
+language: node_js
+node_js:
+- '6'
+env:
+  matrix:
+  - CXX=g++-4.8
+  global:
+    secure: Lf5sYavMAgoTeIWK6LxM8TYnkl60EBMDgs5T/cOl3TbbLHDc6Ty8j4oqgUuVfG+vKBXiHjV5dytnry6mO3L0qJ9HC1VwLeR5zcWLzilbKbme5FliPZyquJU39lkBUweziCFVHxspuxF8PJmSau4CFcj1Q/VSqiBLezL5w/hFTaCdXyoBLwbBCC7nxFro6VI9d4TpnBajvNEUs8fdUO1u+BdI0x4afXqHcADlcyxQab3C7iP9gYeXyFjjuu6SivljLptiDHlXVLUtfac33aILdZxDl5By8wmBMnwHojttZwBdk8yLS+GG1AU4fAErnuHxhg8jdggcLZtmealSVmtiQHKoDPaCEIj71mYrCpJXK/ynPqXdb2oqDY5pm4nrU6vB14zzmETh+pEjEg5DD1Xqd+m0EhY/7fkVQy1NyawFsvZYv7fH7JcAu8a8oCKIaVCAc8YyHfuME7lUF4hGixwOjuEAZiE4GRkStw2wmxG/8YHJRW8IB0kcUKjgWRgnpRTrqRD8J1FFYmyTjSvt6IO5PsOFPSmc5+B14liyxSwioOvyB6xITIcdht3lnMeZe3KMYx6jMQsTdIdjy8tIW0cWWvcjlWOoPFLbm4in422WkblcLatip04m0p9r1S8ET9SDQGEattGKj4dwi8PKf6SjG4SlDkc64GR974IyDIZb8pg=
+addons:
+  apt:
+    sources:
+    - ubuntu-toolchain-r-test
+    packages:
+    - g++-4.8
+    - lib32stdc++6
+    - lib32z1
+before_install:
+- pip install --user awscli
+- export PATH=$PATH:$HOME/.local/bin
+- npm install -g npm@latest
+install:
+- npm install -g bower cordova ionic aws-cli
+- npm install
+- bower update
+before_script:
+- wget http://dl.google.com/android/android-sdk_r24.4-linux.tgz
+- tar -xvf android-sdk_r24.4-linux.tgz
+- echo y | ./android-sdk-linux/tools/android update sdk --no-ui --all --filter platform-tools
+- echo y | ./android-sdk-linux/tools/android update sdk --no-ui --all --filter build-tools-23.0.2
+- echo y | ./android-sdk-linux/tools/android update sdk --no-ui --all --filter android-23
+- echo y | ./android-sdk-linux/tools/android update sdk --no-ui --all --filter extra-android-support
+- echo y | ./android-sdk-linux/tools/android update sdk --no-ui --all --filter extra-android-m2repository
+- echo y | ./android-sdk-linux/tools/android update sdk --no-ui --all --filter extra-google-m2repository
+- export ANDROID_HOME=$PWD/android-sdk-linux
+- export PATH=${PATH}:$ANDROID_HOME/tools:$ANDROID_HOME/platform-tools:$ANDROID_HOME/build-tools/23.0.2
+script:
+- ionic platform add android
+- ionic build android
+- mv /home/travis/build/shirkeyaws/myapp/platforms/android/build/outputs/apk/android-debug.apk ./travis.apk
+- APK_PUT_URL=$(aws --region us-west-2 devicefarm create-upload --name travis.apk --type ANDROID_APP --project-arn arn:aws:devicefarm:us-west-2:306280812807:project:a7645c59-b12a-488a-b422-0ea0ead489e1 --query="upload.url" | tr -d '"')
+- echo $APK_PUT_URL
+- wget http://packages.ubuntu.com/yakkety/curl
+- chmod +x ./curl
+- ./curl -T travis.apk $APK_PUT_URL
